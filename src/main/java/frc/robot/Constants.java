@@ -22,4 +22,6 @@ public class Constants {
 
   public static final int kID_CannonElevator = 6;
   public static final int kID_CannonRotator = 5;
+
+  public static final double kMaxSpeedFactor = 0.3;
 }

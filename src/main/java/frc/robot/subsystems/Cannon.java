@@ -88,10 +88,20 @@ public class Cannon extends SubsystemBase {
 
   public void rotateCannon(double speed) {
     magazineRotator.set(speed);
+    if (speed > 0.0) {
+      System.out.println("rotateCannon left: " + speed);
+    } else if (speed < 0.0) {
+      System.out.println("rotateCannon right: " + speed);
+    }
   }
 
   public void raiseCannon(double speed) {
     cannonElevator.set(speed);
+    if (speed > 0.0) {
+      System.out.println("raiseCannon: " + speed);
+    } else if (speed < 0.0) {
+      System.out.println("lowerCannon: " + speed);
+    }
   }
 
   public void arm(boolean armed) {
@@ -108,4 +118,20 @@ public class Cannon extends SubsystemBase {
   public Boolean isMoving() {
     return false;//(magazineRotator.getStatorCurrent() > 0.001) || (cannonElevator.get() > 0.001);
   } 
+
+  public void teleop(int pov) {
+    if (pov == 0) {
+      this.raiseCannon(-0.4);
+    } else if (pov == 90) {
+      this.rotateCannon(-0.2);
+    } else if (pov == 180) {
+      this.raiseCannon(0.4);
+    } else if (pov == 270) {
+      this.rotateCannon(0.2);
+    } else {
+      this.raiseCannon(0);
+      this.rotateCannon(0);
+    }
+  }
+
 }

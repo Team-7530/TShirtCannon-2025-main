@@ -1,12 +1,14 @@
 package frc.robot;
 
+import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.commands.*;
 import frc.robot.subsystems.*;
 
@@ -18,13 +20,17 @@ import frc.robot.subsystems.*;
  */
 public class RobotContainer {
 
-  private static RobotContainer m_robotContainer = new RobotContainer();
+  private static RobotContainer instance;
 
   // The robot's subsystems
   public final Cannon m_cannon = new Cannon();
   public final DriveTrain m_driveTrain = new DriveTrain();
   public final LEDLights m_lights = new LEDLights(RobotBase.isSimulation());
 
+  /* Path follower */
+//   private SendableChooser<Command> autoChooser;
+  private Command autonomousCommand;
+  
   // Joysticks
   private final XboxController xboxController = new XboxController(0);
 
@@ -49,44 +55,31 @@ public class RobotContainer {
       new JoystickButton(xboxController, XboxController.Button.kLeftStick.value);
   public final JoystickButton right_Stick_Driver =
       new JoystickButton(xboxController, XboxController.Button.kRightStick.value);
+  public final Trigger left_Trigger_Driver = 
+      new Trigger(() -> xboxController.getLeftTriggerAxis() >= 0.5);
+  public final Trigger right_Trigger_Driver = 
+      new Trigger(() -> xboxController.getRightTriggerAxis() >= 0.5);
 
-  // A chooser for autonomous commands
-  SendableChooser<Command> m_chooser = new SendableChooser<>();
 
-  /** The container for the robot. Contains subsystems, OI devices, and commands. */
-  private RobotContainer() {
-    // Smartdashboard Subsystems
+  public static RobotContainer GetInstance() {
+    return instance;
+  }
+    
+      /** The container for the robot. Contains subsystems, OI devices, and commands. */
+  public RobotContainer() {
+    instance = this;
 
-    // SmartDashboard Buttons
-    SmartDashboard.putData("Autonomous Command", new AutonomousCommand());
-    SmartDashboard.putData("ArmCannon", new ArmCannon(this));
-    SmartDashboard.putData("DisarmCannon", new DisarmCannon(this));
-    SmartDashboard.putData("ShootCannon", new ShootCannon(this));
-    SmartDashboard.putData("DriveCommand", new DriveCommand(this));
-    SmartDashboard.putData("ToggleDriveScaling", new ToggleDriveScaling(this));
-    SmartDashboard.putData("IncrementDriveScaling", new IncrementDriveScaling(this));
-    SmartDashboard.putData("DecrementDriveScaling", new DecrementDriveScaling(this));
-    SmartDashboard.putData("RotateMagazine", new RotateMagazine(this));
-    SmartDashboard.putData("ControlCannon", new ControlCannon(this));
-    SmartDashboard.putData("ActivateLights", new ActivateLights(this));
-    SmartDashboard.putData("LightsArmed", new LightsArmed(this));
-    SmartDashboard.putData("LightsOff", new LightsOff(this));
+    // disable all telemetry in the LiveWindow to reduce the processing during each iteration
+    LiveWindow.disableAllTelemetry();
+
+    m_driveTrain.setMaxOutput(Constants.kMaxSpeedFactor);
+    configureAutoPaths();
+    configureAutoCommands();
+    configureTelemetry();
 
     // Configure the button bindings
     configureButtonBindings();
-
-    // Configure default commands
-    m_cannon.setDefaultCommand(new ControlCannon(this));
-    m_driveTrain.setDefaultCommand(new DriveCommand(this));
-
-    // Configure autonomous sendable chooser
-    m_chooser.setDefaultOption("Autonomous Command", new AutonomousCommand());
-
-    SmartDashboard.putData("Auto Mode", m_chooser);
-  }
-
-  public static RobotContainer getInstance() {
-    return m_robotContainer;
+    configureDefaultCommands();
   }
 
   /**
@@ -97,24 +90,25 @@ public class RobotContainer {
    */
   private void configureButtonBindings() {
 
-    a_Button_Driver.onTrue(
-        new SequentialCommandGroup(new ArmCannon(this), new LightsArmed(this)));
-    SmartDashboard.putData("Arm Cannon", new ArmCannon(this));
+    a_Button_Driver
+        .onTrue(Commands.sequence(
+                    Commands.runOnce(() -> m_cannon.arm(true)),
+                    m_lights.lightsArmedCommand()))
+        .onFalse(Commands.sequence(
+                    Commands.runOnce(() -> m_cannon.arm(false)),
+                    m_lights.lightsOffCommand()));
 
-    a_Button_Driver.onFalse(
-        new SequentialCommandGroup(new DisarmCannon(this), new LightsOff(this)));
-    SmartDashboard.putData("Disarm Cannon", new DisarmCannon(this));
+    left_Bumper_Driver.onTrue(Commands.runOnce(() -> m_driveTrain.setDriveScaling(Math.max(m_driveTrain.getDriveScaling() - 0.1, 0.1))));
+    right_Bumper_Driver.onTrue(Commands.runOnce(() -> m_driveTrain.setDriveScaling(Math.max(m_driveTrain.getDriveScaling() + 0.1, 1.0))));
 
-    start_Button_Driver.onTrue(
-        new SequentialCommandGroup(new ShootCannon(this), new ActivateLights(this)));
-    SmartDashboard.putData("Shoot Cannon", new ShootCannon(this));
-
-    left_Stick_Driver.onTrue(new ToggleDriveScaling(this));
-    SmartDashboard.putData("Toggle DriveScaling", new ToggleDriveScaling(this));
-    left_Bumper_Driver.onTrue(new DecrementDriveScaling(this));
-    SmartDashboard.putData("DecrementDriveScaling", new ShootCannon(this));
-    right_Bumper_Driver.onTrue(new IncrementDriveScaling(this));
-    SmartDashboard.putData("DecrementDriveScaling", new ShootCannon(this));
+    start_Button_Driver
+        .onTrue(Commands.sequence(
+            Commands.runOnce(() -> m_cannon.fire()),
+            m_lights.lightsFireCommand()));
+    left_Stick_Driver
+        .onTrue(Commands.sequence(
+            Commands.runOnce(() -> m_cannon.fire()),
+            m_lights.lightsFireCommand()));
   }
 
   public XboxController getXboxController() {
@@ -128,6 +122,71 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     // The selected command will be run in autonomous
-    return m_chooser.getSelected();
+    // return m_chooser.getSelected();
+    return null;
   }
+
+  /** Use this method to define your commands for autonomous mode. */
+  private void configureAutoCommands() {
+    // Add commands to Autonomous Sendable Chooser
+    // autoChooser = AutoBuilder.buildAutoChooser("Forward");
+    // PathfindingCommand.warmupCommand().schedule();
+  }
+    
+  private void configureDefaultCommands() {
+    // Configure default commands
+    m_driveTrain.setDefaultCommand(new DriveCommand(this));
+
+    m_cannon.setDefaultCommand(Commands.run(() -> m_cannon.teleop(xboxController.getPOV()), m_cannon));
+  }
+    
+  private void configureAutoPaths() {
+    // NamedCommands.registerCommand("Intake", intake.intakeCommand());
+  }
+
+  private void configureTelemetry() {
+    // m_driveTrain.registerTelemetry(logger::telemeterize);
+  }
+
+  public void robotPeriodic() {
+  }
+
+  public void simulationInit() {}
+
+  public void simulationPeriodic() {
+  }
+ 
+  public void autonomousInit() {
+    autonomousCommand = this.getAutonomousCommand();
+    if (autonomousCommand != null) {
+      autonomousCommand.schedule();
+    }
+  }
+
+  public void autonomousPeriodic() {}
+
+  public void teleopInit() {
+    // This makes sure that the autonomous stops running when
+    // teleop starts running. If you want the autonomous to
+    // continue until interrupted by another command, remove
+    // this line or comment it out.
+    if (autonomousCommand != null) {
+      autonomousCommand.cancel();
+    }
+  }
+
+  public void teleopPeriodic() {}
+
+  public void testInit() {
+    // Cancels all running commands at the start of test mode.
+    CommandScheduler.getInstance().cancelAll();
+  }
+
+  public void testPeriodic() {}
+
+  public void testExit() {}
+
+  public void disabledInit() {}
+
+  public void disabledPeriodic() {}
 }

@@ -11,8 +11,6 @@ public class DriveCommand extends Command {
 
   private final DriveTrain m_driveTrain;
   private final XboxController m_controller;
-  // private boolean _lastTriggerL = false;
-  // private boolean _lastTriggerR = false;
 
   public DriveCommand(RobotContainer container) {
 
@@ -30,24 +28,11 @@ public class DriveCommand extends Command {
     m_driveTrain.setDriveScaling(0.1);
     m_driveTrain.enableBrakes(false);
     m_driveTrain.enableDriveTrain(true);
-    // _lastTriggerL = _lastTriggerR = false;
   }
 
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    // double triggerL = m_controller.getLeftTriggerAxis();
-    // if ((triggerL >= 0.5) && !_lastTriggerL) {
-    //   m_driveTrain.setDriveScaling(Math.min(m_driveTrain.getDriveScaling() + 0.1, 1.0));
-    // }
-    // _lastTriggerL = (triggerL >= 0.5);
-
-    // double triggerR = m_controller.getRightTriggerAxis();
-    // if ((triggerR >= 0.5) && !_lastTriggerR) {
-    //   m_driveTrain.setDriveScaling(Math.max(m_driveTrain.getDriveScaling() - 0.1, 0.1));
-    // }
-    // _lastTriggerR = (triggerR >= 0.5);
-
     m_driveTrain.drive(m_controller);
   }
 

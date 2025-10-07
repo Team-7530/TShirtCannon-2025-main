@@ -15,9 +15,11 @@ import com.ctre.phoenix.led.TwinkleOffAnimation.TwinkleOffPercent;
 import edu.wpi.first.networktables.GenericEntry;
 import edu.wpi.first.wpilibj.shuffleboard.*;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.Robot;
+
 import java.util.Map;
 
 public class LEDLights extends SubsystemBase {
@@ -367,5 +369,21 @@ public class LEDLights extends SubsystemBase {
 
   public boolean isAnimating() {
     return m_toAnimate != null;
+  }
+
+  public Command lightsOffCommand() {
+    return runOnce(() -> { 
+      runLights(LEDColor.kOff); 
+      changeAnimation(AnimationTypes.RgbFade, new LEDColor(0, 0, 0, 1.0, 0.1)); });
+  }
+  public Command lightsArmedCommand() {
+    return runOnce(() -> { 
+      runLights(LEDColor.kRed); 
+      changeAnimation(AnimationTypes.ColorFlow, new LEDColor(128, 20, 70, 0.0, 0.7)); });
+  }
+  public Command lightsFireCommand() {
+    return runOnce(() -> { 
+      runLights(LEDColor.kWhite); 
+      changeAnimation(AnimationTypes.Strobe, new LEDColor(255, 0, 0, 1.0, 0.5)); });
   }
 }
